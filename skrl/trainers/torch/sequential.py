@@ -51,13 +51,16 @@ class SequentialTrainer(Trainer):
         _cfg.update(cfg if cfg is not None else {})
         agents_scope = agents_scope if agents_scope is not None else []
         super().__init__(env=env, agents=agents, agents_scope=agents_scope, cfg=_cfg)
-
+        ## print("SequentialTrainer init start")
         # init agents
         if self.num_simultaneous_agents > 1:
             for agent in self.agents:
                 agent.init(trainer_cfg=self.cfg)
         else:
             self.agents.init(trainer_cfg=self.cfg)
+        
+        ## print(self.agents, self.agents_scope)
+        ## print("SequentialTrainer init done")
 
     def train(self) -> None:
         """Train the agents sequentially
@@ -73,6 +76,8 @@ class SequentialTrainer(Trainer):
         - Reset environments
         """
         # set running mode
+        ## print("SequentialTrainer train")
+        
         if self.num_simultaneous_agents > 1:
             for agent in self.agents:
                 agent.set_running_mode("train")
@@ -89,13 +94,14 @@ class SequentialTrainer(Trainer):
                 self.multi_agent_train()
             return
 
+        ### CAUTION: The following code highly unlikely to be executed unless multi-agent ###
+        
         # reset env
         states, infos = self.env.reset()
 
         for timestep in tqdm.tqdm(
             range(self.initial_timestep, self.timesteps), disable=self.disable_progressbar, file=sys.stdout
         ):
-
             # pre-interaction
             for agent in self.agents:
                 agent.pre_interaction(timestep=timestep, timesteps=self.timesteps)
@@ -118,6 +124,7 @@ class SequentialTrainer(Trainer):
 
                 # record the environments' transitions
                 for agent, scope in zip(self.agents, self.agents_scope):
+                    print(scope[0], scope[1])
                     agent.record_transition(
                         states=states[scope[0] : scope[1]],
                         actions=actions[scope[0] : scope[1]],
@@ -175,6 +182,8 @@ class SequentialTrainer(Trainer):
                 self.multi_agent_eval()
             return
 
+        ### CAUTION: The following code highly unlikely to be executed unless multi-agent ###
+        
         # reset env
         states, infos = self.env.reset()
 

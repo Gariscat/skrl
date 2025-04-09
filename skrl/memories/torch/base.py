@@ -352,6 +352,7 @@ class Memory:
             batch_size = (self.memory_size * self.num_envs) // mini_batches
             batches = [(batch_size * i, batch_size * (i + 1)) for i in range(mini_batches)]
             return [[self.tensors_view[name][batch[0] : batch[1]] for name in names] for batch in batches]
+        
         return [[self.tensors_view[name] for name in names]]
 
     def get_sampling_indexes(self) -> Union[tuple, np.ndarray, torch.Tensor]:

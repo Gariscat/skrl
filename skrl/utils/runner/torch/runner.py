@@ -117,6 +117,10 @@ class Runner:
             from skrl.agents.torch.ppo import PPO, PPO_DEFAULT_CONFIG
 
             component = PPO_DEFAULT_CONFIG if "default_config" in name else PPO
+        elif name in ["grpo", "grpo_default_config"]:
+            from skrl.agents.torch.grpo import GRPO, GRPO_DEFAULT_CONFIG
+
+            component = GRPO_DEFAULT_CONFIG if "default_config" in name else GRPO
         elif name in ["rpo", "rpo_default_config"]:
             from skrl.agents.torch.rpo import RPO, RPO_DEFAULT_CONFIG
 
@@ -145,6 +149,8 @@ class Runner:
         # trainer
         elif name == "sequentialtrainer":
             from skrl.trainers.torch import SequentialTrainer as component
+        elif name == "trainer":
+            from skrl.trainers.torch import Trainer as component
 
         if component is None:
             raise ValueError(f"Unknown component '{name}' in runner cfg")
@@ -407,7 +413,7 @@ class Runner:
                 "reply_buffer": reply_buffer,
                 "collect_reference_motions": lambda num_samples: env.collect_reference_motions(num_samples),
             }
-        elif agent_class in ["a2c", "cem", "ddpg", "ddqn", "dqn", "ppo", "rpo", "sac", "td3", "trpo"]:
+        elif agent_class in ["a2c", "cem", "ddpg", "ddqn", "dqn", "ppo", "grpo", "rpo", "sac", "td3", "trpo"]:
             agent_id = possible_agents[0]
             agent_cfg = self._component(f"{agent_class}_DEFAULT_CONFIG").copy()
             agent_cfg.update(self._process_cfg(cfg["agent"]))
@@ -482,8 +488,10 @@ class Runner:
             trainer_class = self._component(cfg["trainer"]["class"])
             del cfg["trainer"]["class"]
         except KeyError:
-            trainer_class = self._component("SequentialTrainer")
-            logger.warning("No 'class' field defined in 'trainer' cfg. 'SequentialTrainer' will be used as default")
+            ### trainer_class = self._component("SequentialTrainer")
+            ### logger.warning("No 'class' field defined in 'trainer' cfg. 'SequentialTrainer' will be used as default")
+            trainer_class = self._component("Trainer")
+            logger.warning("No 'class' field defined in 'trainer' cfg. 'Trainer' will be used as default")
         # instantiate trainer
         return trainer_class(env=env, agents=agent, cfg=cfg["trainer"])
 
@@ -494,6 +502,9 @@ class Runner:
 
         :raises ValueError: The specified running mode is not valid
         """
+        print("trainer type: ", type(self._trainer))
+        import inspect
+        print(inspect.getfile(type(self._trainer)))
         if mode == "train":
             self._trainer.train()
         elif mode == "eval":
