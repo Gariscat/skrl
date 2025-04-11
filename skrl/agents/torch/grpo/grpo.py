@@ -321,22 +321,29 @@ class GRPO(Agent):
         """
         pass
 
-    def post_interaction(self, timestep: int, timesteps: int) -> None:
+    def post_interaction(self, timestep: int, timesteps: int) -> bool:
         """Callback called after the interaction with the environment
 
         :param timestep: Current timestep
         :type timestep: int
         :param timesteps: Number of timesteps
         :type timesteps: int
+        
+        :return: updated
+        :rtype: bool
         """
         self._rollout += 1
         if not self._rollout % self._rollouts and timestep >= self._learning_starts:
             self.set_mode("train")
             self._update(timestep, timesteps)
             self.set_mode("eval")
+            
+            return True
 
         # write tracking data and checkpoints
         super().post_interaction(timestep, timesteps)
+        
+        return False
 
     def _update(self, timestep: int, timesteps: int) -> None:
         """Algorithm's main update step
@@ -428,8 +435,8 @@ class GRPO(Agent):
         # sample mini-batches from memory
         sampled_batches = self.memory.sample_all(names=self._tensors_names, mini_batches=self._mini_batches)
         assert len(sampled_batches) == self._mini_batches
-        ## print("memory_size: ", self.memory.memory_size)
-        ## print("mini_batches: ", self._mini_batches)
+        ## print("memory size:", self.memory.memory_size)
+        ## print(self.memory.get_tensor_by_name("rewards").shape)
         cumulative_policy_loss = 0
         cumulative_entropy_loss = 0
         cumulative_value_loss = 0

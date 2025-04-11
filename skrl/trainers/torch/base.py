@@ -195,7 +195,7 @@ class Trainer:
 
                 # step the environments
                 next_states, rewards, terminated, truncated, infos = self.env.step(actions)
-
+                ## print(type(self.env._unwrapped))
                 # render scene
                 if not self.headless:
                     self.env.render()

@@ -149,8 +149,8 @@ class Runner:
         # trainer
         elif name == "sequentialtrainer":
             from skrl.trainers.torch import SequentialTrainer as component
-        elif name == "trainer":
-            from skrl.trainers.torch import Trainer as component
+        elif name == "grpotrainer":
+            from skrl.trainers.torch import GRPOTrainer as component
 
         if component is None:
             raise ValueError(f"Unknown component '{name}' in runner cfg")
@@ -488,10 +488,8 @@ class Runner:
             trainer_class = self._component(cfg["trainer"]["class"])
             del cfg["trainer"]["class"]
         except KeyError:
-            ### trainer_class = self._component("SequentialTrainer")
-            ### logger.warning("No 'class' field defined in 'trainer' cfg. 'SequentialTrainer' will be used as default")
-            trainer_class = self._component("Trainer")
-            logger.warning("No 'class' field defined in 'trainer' cfg. 'Trainer' will be used as default")
+            trainer_class = self._component("SequentialTrainer")
+            logger.warning("No 'class' field defined in 'trainer' cfg. 'SequentialTrainer' will be used as default")
         # instantiate trainer
         return trainer_class(env=env, agents=agent, cfg=cfg["trainer"])
 
