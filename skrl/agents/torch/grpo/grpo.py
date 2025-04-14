@@ -15,7 +15,7 @@ from skrl.memories.torch import Memory
 from skrl.models.torch import Model
 from skrl.resources.schedulers.torch import KLAdaptiveLR
 
-
+from math import ceil
 # fmt: off
 # [start-config-dict-torch]
 GRPO_DEFAULT_CONFIG = {
@@ -321,7 +321,7 @@ class GRPO(Agent):
         """
         pass
 
-    def post_interaction(self, timestep: int, timesteps: int) -> bool:
+    def post_interaction(self, timestep: int, timesteps: int, group_size: int = None) -> bool:
         """Callback called after the interaction with the environment
 
         :param timestep: Current timestep
@@ -335,17 +335,17 @@ class GRPO(Agent):
         self._rollout += 1
         if not self._rollout % self._rollouts and timestep >= self._learning_starts:
             self.set_mode("train")
-            self._update(timestep, timesteps)
+            source_env_ids = self._update(timestep, timesteps, group_size)
             self.set_mode("eval")
             
-            return True
+            return True, source_env_ids
 
         # write tracking data and checkpoints
         super().post_interaction(timestep, timesteps)
         
-        return False
+        return False, None
 
-    def _update(self, timestep: int, timesteps: int) -> None:
+    def _update(self, timestep: int, timesteps: int, group_size: int = None) -> None:
         """Algorithm's main update step
 
         :param timestep: Current timestep
@@ -361,6 +361,7 @@ class GRPO(Agent):
             next_values: torch.Tensor = None,
             discount_factor: float = 0.99,
             lambda_coefficient: float = 0.95,
+            group_size: int = None,
         ) -> torch.Tensor:
             """Compute the Relative Advantage
 
@@ -406,8 +407,30 @@ class GRPO(Agent):
             ### PPO
             # advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
             ### GRPO
-            advantages = (advantages - advantages.mean(dim=1, keepdim=True)) / (advantages.std(dim=1, keepdim=True) + 1e-8)
-            return returns, advantages
+            ## advantages = (advantages - advantages.mean(dim=1, keepdim=True)) / (advantages.std(dim=1, keepdim=True) + 1e-8)
+            num_envs = rewards.shape[1]
+            num_slices = int(ceil(num_envs/group_size))
+            
+            source_env_ids = []
+            
+            for i in range(num_slices):
+                st = i * group_size
+                ed = min(num_envs, (i + 1) * group_size)
+                cur_group_adv = advantages[:, st:ed]
+                advantages[:, st:ed] = (cur_group_adv - cur_group_adv.mean(dim=1, keepdim=True)) / (cur_group_adv.std(dim=1, keepdim=True) + 1e-8)
+                
+                if self.cfg["select_policy"] == "random":
+                    source_env_id = torch.randint(st, ed, (1,)).item()
+                elif self.cfg["select_policy"] == "advantageous":
+                    print(advantages.shape)
+                    print(advantages[0, st:ed].shape)
+                    source_env_id = st + advantages[0, st:ed].flatten().argmax().item()
+                else:
+                    raise NotImplementedError("This policy to select source environment within each group is not implemented.")
+                
+                source_env_ids += [source_env_id]
+            
+            return returns, advantages, source_env_ids
 
         ## compute returns and advantages
         ## with torch.no_grad(), torch.autocast(device_type=self._device_type, enabled=self._mixed_precision):
@@ -419,14 +442,15 @@ class GRPO(Agent):
         ##     last_values = self._value_preprocessor(last_values, inverse=True)
 
         ## values = self.memory.get_tensor_by_name("values")
-        returns, advantages = compute_ra(
+        returns, advantages, source_env_ids = compute_ra(
             rewards=self.memory.get_tensor_by_name("rewards"),
             dones=self.memory.get_tensor_by_name("terminated") | self.memory.get_tensor_by_name("truncated"),
             values=None,
             next_values=None,
             discount_factor=self._discount_factor,
             lambda_coefficient=self._lambda,
-        )
+            group_size=group_size,
+        )    
 
         ## self.memory.set_tensor_by_name("values", self._value_preprocessor(values, train=True))
         self.memory.set_tensor_by_name("returns", self._value_preprocessor(returns, train=True))
@@ -548,3 +572,5 @@ class GRPO(Agent):
 
         if self._learning_rate_scheduler:
             self.track_data("Learning / Learning rate", self.scheduler.get_last_lr()[0])
+
+        return source_env_ids

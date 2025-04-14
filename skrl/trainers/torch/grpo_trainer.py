@@ -123,9 +123,9 @@ class GRPOTrainer(Trainer):
                             self.agents.track_data(f"Info / {k}", v.item())
 
             # post-interaction
-            updated = self.agents.post_interaction(timestep=timestep, timesteps=self.timesteps)
+            updated, source_env_ids = self.agents.post_interaction(timestep=timestep, timesteps=self.timesteps, group_size=self.cfg["group_size"])
             if updated:
-                self.env._unwrapped.sync_state(self.cfg["group_size"])
+                self.env._unwrapped.sync_state(self.cfg["group_size"], source_env_ids)
 
             # reset environments
             if self.env.num_envs > 1:
