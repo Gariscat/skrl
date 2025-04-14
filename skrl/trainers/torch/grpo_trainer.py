@@ -20,6 +20,7 @@ GRPO_TRAINER_DEFAULT_CONFIG = {
     "close_environment_at_exit": True,   # whether to close the environment on normal program termination
     "environment_info": "episode",       # key used to get and log environment info
     "stochastic_evaluation": False,      # whether to use actions rather than (deterministic) mean actions during evaluation
+    "group_size": None
 }
 # [end-config-dict-torch]
 # fmt: on
@@ -61,6 +62,8 @@ class GRPOTrainer(Trainer):
         
         ## print(self.agents, self.agents_scope)
         ## print("SequentialTrainer init done")
+        if self.cfg.get("group_size") is None:
+            self.cfg["group_size"] = self.env.num_envs
 
     def train(self) -> None:
         """Train agent
@@ -122,7 +125,7 @@ class GRPOTrainer(Trainer):
             # post-interaction
             updated = self.agents.post_interaction(timestep=timestep, timesteps=self.timesteps)
             if updated:
-                self.env._unwrapped.sync_state()
+                self.env._unwrapped.sync_state(self.cfg["group_size"])
 
             # reset environments
             if self.env.num_envs > 1:
