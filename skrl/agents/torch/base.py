@@ -675,6 +675,11 @@ class Agent:
                 }
             # write checkpoints
             self.write_checkpoint(timestep, timesteps)
+            
+            ## print("Updated.")
+            ## print(f"Timestep: {timestep}")
+            ## print(f"Rollout: {self._rollout}/{self._rollouts}")
+            ## print(f"checkpoint_interval: {self.checkpoint_interval}")
 
         # write to tensorboard
         if timestep > 1 and self.write_interval > 0 and not timestep % self.write_interval:

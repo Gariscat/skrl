@@ -333,17 +333,18 @@ class GRPO(Agent):
         :rtype: bool
         """
         self._rollout += 1
+        updated, source_env_ids = False, None
         if not self._rollout % self._rollouts and timestep >= self._learning_starts:
             self.set_mode("train")
             source_env_ids = self._update(timestep, timesteps, group_size)
             self.set_mode("eval")
             
-            return True, source_env_ids
+            updated = True
 
         # write tracking data and checkpoints
         super().post_interaction(timestep, timesteps)
         
-        return False, None
+        return updated, source_env_ids
 
     def _update(self, timestep: int, timesteps: int, group_size: int = None) -> None:
         """Algorithm's main update step
@@ -422,8 +423,8 @@ class GRPO(Agent):
                 if self.cfg["select_policy"] == "random":
                     source_env_id = torch.randint(st, ed, (1,)).item()
                 elif self.cfg["select_policy"] == "advantageous":
-                    print(advantages.shape)
-                    print(advantages[0, st:ed].shape)
+                    ## print(advantages.shape)
+                    ## print(advantages[0, st:ed].shape)
                     source_env_id = st + advantages[0, st:ed].flatten().argmax().item()
                 else:
                     raise NotImplementedError("This policy to select source environment within each group is not implemented.")
